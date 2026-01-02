@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { registerApi } from "../../api/auth.api";
+import { registerApi, loginApi } from "../../api/auth.api";
+import { useAuth } from "../../hooks/useAuth";
 import logo from "../../media/logo.png";
 import background from "../../media/background.png";
 
 export default function Register() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [form, setForm] = useState({
     firstName: "",
@@ -33,10 +35,9 @@ export default function Register() {
   /* ---------- EMAIL VALIDATION ---------- */
   const emailRegex =
     /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
   const isEmailValid = emailRegex.test(form.email);
 
-  /* ---------- PASSWORD RULES ---------- */
+  /* ---------- PASSWORD VALIDATION ---------- */
   const passwordRules = {
     length: form.password.length >= 8,
     uppercase: /[A-Z]/.test(form.password),
@@ -55,7 +56,6 @@ export default function Register() {
     form.confirmPassword &&
     form.password !== form.confirmPassword;
 
-  /* ---------- SUBMIT ---------- */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -70,6 +70,7 @@ export default function Register() {
     setError("");
 
     try {
+      // ✅ REGISTER
       await registerApi({
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
@@ -77,8 +78,20 @@ export default function Register() {
         password: form.password,
       });
 
-      navigate("/login", { replace: true });
+      // ✅ AUTO LOGIN (EXPLICIT)
+      const auth = await loginApi({
+        email: form.email,
+        password: form.password,
+      });
+
+      const token = auth.token || auth.accessToken || auth.jwt;
+      if (!token) throw new Error("Token missing");
+
+      login(token);
+      navigate("/dashboard", { replace: true });
+
     } catch (err) {
+      console.error(err);
       setError(
         err.response?.data?.message || "Registration failed"
       );
@@ -89,14 +102,22 @@ export default function Register() {
 
   return (
     <div
-      className="h-screen relative bg-cover bg-center"
+      className="h-screen overflow-hidden relative bg-cover bg-center"
       style={{ backgroundImage: `url(${background})` }}
     >
-      <div className="absolute left-6 md:left-16 top-1/2 -translate-y-1/2 w-full max-w-md bg-white/95 p-6 rounded-2xl shadow-2xl">
+      <div
+        className="
+          absolute left-6 md:left-16 top-1/2 -translate-y-1/2
+          w-full max-w-md
+          bg-white/95 backdrop-blur-sm
+          p-6 rounded-2xl border
+          shadow-2xl shadow-black/30
+        "
+      >
         <div className="text-center mb-3">
           <img src={logo} alt="MoneyBook" className="mx-auto h-14 mb-1" />
-          <h1 className="text-xl font-bold">MoneyBook</h1>
-          <p className="text-sm text-gray-600">Create your account</p>
+          <h1 className="text-xl font-bold text-gray-900">MoneyBook</h1>
+          <p className="text-gray-600 text-sm">Create your account</p>
         </div>
 
         {error && (
@@ -105,7 +126,7 @@ export default function Register() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-3" autoComplete="off">
           <input type="text" hidden />
           <input type="password" hidden />
 
@@ -113,35 +134,36 @@ export default function Register() {
             type="text"
             placeholder="First Name"
             required
+            className="w-full px-3 py-2 border rounded-lg text-sm"
             value={form.firstName}
             onChange={(e) =>
               setForm({ ...form, firstName: e.target.value })
             }
-            className="w-full px-3 py-2 border rounded-lg text-sm"
           />
 
           <input
             type="text"
             placeholder="Last Name"
             required
+            className="w-full px-3 py-2 border rounded-lg text-sm"
             value={form.lastName}
             onChange={(e) =>
               setForm({ ...form, lastName: e.target.value })
             }
-            className="w-full px-3 py-2 border rounded-lg text-sm"
           />
 
           <input
             type="email"
             placeholder="Email"
+            autoComplete="new-email"
             required
+            className={`w-full px-3 py-2 border rounded-lg text-sm ${
+              form.email && !isEmailValid ? "border-red-500" : ""
+            }`}
             value={form.email}
             onChange={(e) =>
               setForm({ ...form, email: e.target.value })
             }
-            className={`w-full px-3 py-2 border rounded-lg text-sm ${
-              form.email && !isEmailValid ? "border-red-500" : ""
-            }`}
           />
 
           {/* PASSWORD */}
@@ -149,12 +171,13 @@ export default function Register() {
             <input
               type={showPassword ? "text" : "password"}
               placeholder="Password"
+              autoComplete="new-password"
               required
+              className="w-full px-3 py-2 pr-10 border rounded-lg text-sm"
               value={form.password}
               onChange={(e) =>
                 setForm({ ...form, password: e.target.value })
               }
-              className="w-full px-3 py-2 pr-10 border rounded-lg text-sm"
             />
             <button
               type="button"
@@ -165,7 +188,6 @@ export default function Register() {
             </button>
           </div>
 
-          {/* PASSWORD RULE INDICATORS */}
           <ul className="text-[11px] leading-tight space-y-0.5">
             <li className={passwordRules.length ? "text-green-600" : "text-gray-500"}>
               • Minimum 8 characters
@@ -181,19 +203,19 @@ export default function Register() {
             </li>
           </ul>
 
-          {/* CONFIRM PASSWORD */}
           <div className="relative">
             <input
               type={showConfirmPassword ? "text" : "password"}
               placeholder="Confirm Password"
+              autoComplete="new-password"
               required
+              className={`w-full px-3 py-2 pr-10 border rounded-lg text-sm ${
+                passwordsMismatch ? "border-red-500" : ""
+              }`}
               value={form.confirmPassword}
               onChange={(e) =>
                 setForm({ ...form, confirmPassword: e.target.value })
               }
-              className={`w-full px-3 py-2 pr-10 border rounded-lg text-sm ${
-                passwordsMismatch ? "border-red-500" : ""
-              }`}
             />
             <button
               type="button"

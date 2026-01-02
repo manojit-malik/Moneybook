@@ -9,7 +9,11 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+  });
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -24,31 +28,14 @@ export default function Login() {
     setError("");
 
     try {
-      const res = await loginApi({
-        email: form.email.toLowerCase(),
-        password: form.password,
-      });
-
-      console.log("LOGIN RESPONSE:", res);
-
-      const token =
-        res?.token ||
-        res?.accessToken ||
-        res?.jwt ||
-        res?.data?.token;
-
-      if (!token) {
-        throw new Error("Token not found in response");
-      }
+      const res = await loginApi(form);
+      const token = res.token || res.accessToken || res.jwt;
+      if (!token) throw new Error("Token missing");
 
       login(token);
       navigate("/dashboard", { replace: true });
-
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-        "Invalid email or password"
-      );
+    } catch {
+      setError("Invalid email or password");
     } finally {
       setLoading(false);
     }
@@ -59,11 +46,21 @@ export default function Login() {
       className="min-h-screen relative bg-cover bg-center"
       style={{ backgroundImage: `url(${background})` }}
     >
-      <div className="absolute left-6 md:left-16 top-1/2 -translate-y-1/2 w-full max-w-md bg-white/95 p-8 rounded-2xl shadow-2xl">
+      {/* LOGIN CARD */}
+      <div
+        className="
+          absolute left-6 md:left-16 top-1/2 -translate-y-1/2
+          w-full max-w-md min-h-[560px]
+          bg-white/95 backdrop-blur-sm
+          p-8 rounded-2xl border
+          shadow-2xl shadow-black/30
+          flex flex-col justify-center
+        "
+      >
         <div className="text-center mb-6">
           <img src={logo} alt="MoneyBook" className="mx-auto h-16 mb-2" />
-          <h1 className="text-2xl font-bold">MoneyBook</h1>
-          <p className="text-sm text-gray-600">Welcome back</p>
+          <h1 className="text-2xl font-bold text-gray-900">MoneyBook</h1>
+          <p className="text-gray-600 text-sm mt-1">Welcome back</p>
         </div>
 
         {error && (
@@ -72,33 +69,40 @@ export default function Login() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+          {/* Disable browser autofill */}
+          <input type="text" name="fakeuser" hidden />
+          <input type="password" name="fakepass" hidden />
+
           <input
             type="email"
             placeholder="Email"
+            autoComplete="new-email"
             required
+            className="w-full px-4 py-3 border rounded-lg"
             value={form.email}
             onChange={(e) =>
               setForm({ ...form, email: e.target.value })
             }
-            className="w-full px-4 py-3 border rounded-lg"
           />
 
+          {/* PASSWORD */}
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
               placeholder="Password"
+              autoComplete="new-password"
               required
+              className="w-full px-4 py-3 pr-12 border rounded-lg"
               value={form.password}
               onChange={(e) =>
                 setForm({ ...form, password: e.target.value })
               }
-              className="w-full px-4 py-3 pr-12 border rounded-lg"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
             >
               {showPassword ? "🙈" : "👁️"}
             </button>
@@ -107,13 +111,13 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg"
           >
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
-        <p className="mt-5 text-center text-sm">
+        <p className="mt-5 text-center text-sm text-gray-600">
           Don’t have an account?{" "}
           <Link to="/register" className="text-blue-600 font-semibold">
             Sign up
