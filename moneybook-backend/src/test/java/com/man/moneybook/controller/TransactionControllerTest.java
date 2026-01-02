@@ -7,7 +7,9 @@ import com.man.moneybook.entity.User;
 import com.man.moneybook.enums.TransactionType;
 import com.man.moneybook.repository.TransactionRepository;
 import com.man.moneybook.repository.UserRepository;
+import com.man.moneybook.util.SecurityUtils;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -19,7 +21,7 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,12 +43,13 @@ class TransactionControllerTest {
     @Test
     void shouldCreateTransactionSuccessfully() throws Exception {
 
-        // mock logged-in user
-        User user = new User();
-        user.setId(1L);
-        user.setEmail("test@gmail.com");
+        // ✅ Mongo-style user
+        User user = User.builder()
+                .id("user123")
+                .email("test@gmail.com")
+                .build();
 
-        when(userRepository.findByEmail(any()))
+        when(userRepository.findByEmail("test@gmail.com"))
                 .thenReturn(Optional.of(user));
 
         when(transactionRepository.save(any(Transaction.class)))
@@ -59,9 +62,17 @@ class TransactionControllerTest {
         dto.setDescription("December Salary");
         dto.setTransactionDate(LocalDate.now());
 
-        mockMvc.perform(post("/transactions")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+        // ✅ Mock SecurityUtils.getCurrentUserEmail()
+        try (MockedStatic<SecurityUtils> utilities =
+                     mockStatic(SecurityUtils.class)) {
+
+            utilities.when(SecurityUtils::getCurrentUserEmail)
+                    .thenReturn("test@gmail.com");
+
+            mockMvc.perform(post("/transactions")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(dto)))
+                    .andExpect(status().isOk());
+        }
     }
 }

@@ -42,4 +42,6 @@ class TransactionServiceImplTest {
 
         assertThat(balance).isEqualByComparingTo("600");
     }
+
+
 }
